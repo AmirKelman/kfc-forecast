@@ -1,9 +1,8 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: kfc_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: kfc
       POSTGRES_PASSWORD: kfc_secret
@@ -24,6 +23,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: kfc_backend
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,14 +33,22 @@ services:
       - "8080:8080"
     environment:
       CONFIG_PATH: /app/config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: kfc_frontend
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
 

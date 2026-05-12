@@ -3,6 +3,7 @@ package forecast
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -15,6 +16,7 @@ type Service struct {
 	db          *gorm.DB
 	historyDays int
 	daysAhead   int
+	mu          sync.Mutex // prevents concurrent generation runs
 }
 
 func NewService(db *gorm.DB, historyDays, daysAhead int) *Service {
@@ -34,8 +36,10 @@ type avgRow struct {
 }
 
 // Generate computes average-based forecasts for the target date and persists them.
-// It is idempotent: existing forecasts for the same date are replaced atomically.
+// It is idempotent and concurrency-safe: at most one run executes at a time.
 func (s *Service) Generate() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	targetDate := today().AddDate(0, 0, s.daysAhead)
 	cutoff := today().AddDate(0, 0, -s.historyDays)
 

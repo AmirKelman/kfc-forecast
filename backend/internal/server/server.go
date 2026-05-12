@@ -42,6 +42,10 @@ func (s *Server) health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func (s *Server) Run(port int) error {
-	return s.router.Run(fmt.Sprintf(":%d", port))
+// HTTPServer returns a configured *http.Server for graceful shutdown support.
+func (s *Server) HTTPServer(port int) *http.Server {
+	return &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: s.router,
+	}
 }

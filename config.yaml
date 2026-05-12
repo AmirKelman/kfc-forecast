@@ -1,0 +1,21 @@
+# KFC Forecast Service Configuration
+# All user-tunable settings live here.
+
+server:
+  port: 8080
+
+database:
+  host: postgres
+  port: 5432
+  user: kfc
+  password: kfc_secret
+  name: kfc_forecast
+  sslmode: disable
+
+forecast:
+  # Cron expression for daily generation (default: 2:00 AM every day)
+  generation_cron: "0 2 * * *"
+  # How many days of historical sales to average over
+  history_days: 30
+  # How many days ahead to generate forecasts for
+  days_ahead: 1

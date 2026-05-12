@@ -6,17 +6,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"kfc-forecast/internal/forecast"
 )
 
 type Server struct {
-	router *gin.Engine
-	db     *gorm.DB
+	router      *gin.Engine
+	db          *gorm.DB
+	forecastSvc *forecast.Service
 }
 
-func New(db *gorm.DB) *Server {
+func New(db *gorm.DB, forecastSvc *forecast.Service) *Server {
 	s := &Server{
-		router: gin.Default(),
-		db:     db,
+		router:      gin.Default(),
+		db:          db,
+		forecastSvc: forecastSvc,
 	}
 	s.registerRoutes()
 	return s

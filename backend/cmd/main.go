@@ -6,6 +6,7 @@ import (
 
 	"kfc-forecast/internal/config"
 	"kfc-forecast/internal/db"
+	"kfc-forecast/internal/forecast"
 	"kfc-forecast/internal/server"
 )
 
@@ -25,7 +26,9 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	srv := server.New(database)
+	forecastSvc := forecast.NewService(database, cfg.Forecast.HistoryDays, cfg.Forecast.DaysAhead)
+
+	srv := server.New(database, forecastSvc)
 	log.Printf("server starting on port %d", cfg.Server.Port)
 	if err := srv.Run(cfg.Server.Port); err != nil {
 		log.Fatalf("server error: %v", err)

@@ -19,3 +19,10 @@ forecast:
   history_days: 30
   # How many days ahead to generate forecasts for
   days_ahead: 1
+  # IANA timezone for cron scheduling and day-boundary calculations
+  # Change to "Asia/Jerusalem" for Israel local time
+  timezone: "UTC"
+  # Shared secret for POST /api/forecasts/generate.
+  # Empty string disables the check (default — safe for local dev).
+  # Set to a strong random value in production.
+  admin_token: ""

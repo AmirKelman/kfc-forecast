@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -69,12 +70,17 @@ func (s *Server) getForecasts(c *gin.Context) {
 }
 
 func (s *Server) triggerGenerate(c *gin.Context) {
+	if s.adminToken != "" && c.GetHeader("X-Admin-Token") != s.adminToken {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid X-Admin-Token header"})
+		return
+	}
+
 	go func() {
 		if err := s.forecastSvc.Generate(); err != nil {
-			// error already logged inside Generate()
-			_ = err
+			log.Printf("triggerGenerate: async generation failed: %v", err)
 		}
 	}()
+
 	c.JSON(http.StatusAccepted, gin.H{
 		"message": "forecast generation started",
 		"date":    time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02"),

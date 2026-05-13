@@ -3,9 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
@@ -16,27 +14,18 @@ type Server struct {
 	router      *gin.Engine
 	db          *gorm.DB
 	forecastSvc *forecast.Service
+	adminToken  string
 }
 
-func New(db *gorm.DB, forecastSvc *forecast.Service) *Server {
+func New(db *gorm.DB, forecastSvc *forecast.Service, adminToken string) *Server {
 	s := &Server{
 		router:      gin.Default(),
 		db:          db,
 		forecastSvc: forecastSvc,
+		adminToken:  adminToken,
 	}
-	s.registerMiddleware()
 	s.registerRoutes()
 	return s
-}
-
-func (s *Server) registerMiddleware() {
-	s.router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type"},
-		ExposeHeaders:    []string{"Content-Length"},
-		MaxAge:           12 * time.Hour,
-	}))
 }
 
 func (s *Server) registerRoutes() {

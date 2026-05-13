@@ -15,13 +15,18 @@ type Scheduler struct {
 	cron        *cron.Cron
 	forecastSvc *forecast.Service
 	db          *gorm.DB
+	loc         *time.Location
 }
 
-func New(forecastSvc *forecast.Service, db *gorm.DB) *Scheduler {
+func New(forecastSvc *forecast.Service, db *gorm.DB, loc *time.Location) *Scheduler {
+	if loc == nil {
+		loc = time.UTC
+	}
 	return &Scheduler{
-		cron:        cron.New(),
+		cron:        cron.New(cron.WithLocation(loc)),
 		forecastSvc: forecastSvc,
 		db:          db,
+		loc:         loc,
 	}
 }
 
@@ -32,7 +37,7 @@ func (s *Scheduler) Start(cronExpr string) error {
 		return err
 	}
 	s.cron.Start()
-	log.Printf("scheduler: started with cron %q", cronExpr)
+	log.Printf("scheduler: started with cron %q in timezone %s", cronExpr, s.loc)
 
 	s.runIfNeeded()
 	return nil
@@ -60,7 +65,7 @@ func (s *Scheduler) run() {
 
 // runIfNeeded generates forecasts immediately on startup if tomorrow has none yet.
 func (s *Scheduler) runIfNeeded() {
-	tomorrow := tomorrowDate()
+	tomorrow := s.tomorrowDate()
 
 	var count int64
 	s.db.Model(&models.Forecast{}).
@@ -76,7 +81,7 @@ func (s *Scheduler) runIfNeeded() {
 	}
 }
 
-func tomorrowDate() time.Time {
-	t := time.Now().UTC()
-	return time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, time.UTC)
+func (s *Scheduler) tomorrowDate() time.Time {
+	t := time.Now().In(s.loc)
+	return time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, s.loc)
 }

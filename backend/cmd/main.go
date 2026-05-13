@@ -27,22 +27,26 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
+	loc, err := time.LoadLocation(cfg.Forecast.Timezone)
+	if err != nil {
+		log.Fatalf("invalid forecast.timezone %q: %v", cfg.Forecast.Timezone, err)
+	}
+
 	database, err := db.Connect(cfg.Database)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	forecastSvc := forecast.NewService(database, cfg.Forecast.HistoryDays, cfg.Forecast.DaysAhead)
+	forecastSvc := forecast.NewService(database, cfg.Forecast.HistoryDays, cfg.Forecast.DaysAhead, loc)
 
-	sched := scheduler.New(forecastSvc, database)
+	sched := scheduler.New(forecastSvc, database, loc)
 	if err := sched.Start(cfg.Forecast.GenerationCron); err != nil {
 		log.Fatalf("failed to start scheduler: %v", err)
 	}
 
-	srv := server.New(database, forecastSvc)
+	srv := server.New(database, forecastSvc, cfg.Forecast.AdminToken)
 	httpServer := srv.HTTPServer(cfg.Server.Port)
 
-	// Start HTTP server in background.
 	go func() {
 		log.Printf("server listening on :%d", cfg.Server.Port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -50,7 +54,6 @@ func main() {
 		}
 	}()
 
-	// Block until SIGINT or SIGTERM.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

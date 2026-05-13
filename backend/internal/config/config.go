@@ -25,6 +25,10 @@ type ForecastConfig struct {
 	GenerationCron string `mapstructure:"generation_cron"`
 	HistoryDays    int    `mapstructure:"history_days"`
 	DaysAhead      int    `mapstructure:"days_ahead"`
+	// IANA timezone name used for cron scheduling and day boundaries (e.g. "Asia/Jerusalem").
+	Timezone   string `mapstructure:"timezone"`
+	// AdminToken guards POST /api/forecasts/generate. Empty string disables the check.
+	AdminToken string `mapstructure:"admin_token"`
 }
 
 func Load(path string) (*Config, error) {

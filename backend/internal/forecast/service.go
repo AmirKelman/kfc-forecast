@@ -16,14 +16,19 @@ type Service struct {
 	db          *gorm.DB
 	historyDays int
 	daysAhead   int
+	loc         *time.Location
 	mu          sync.Mutex // prevents concurrent generation runs
 }
 
-func NewService(db *gorm.DB, historyDays, daysAhead int) *Service {
+func NewService(db *gorm.DB, historyDays, daysAhead int, loc *time.Location) *Service {
+	if loc == nil {
+		loc = time.UTC
+	}
 	return &Service{
 		db:          db,
 		historyDays: historyDays,
 		daysAhead:   daysAhead,
+		loc:         loc,
 	}
 }
 
@@ -40,8 +45,9 @@ type avgRow struct {
 func (s *Service) Generate() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	targetDate := today().AddDate(0, 0, s.daysAhead)
-	cutoff := today().AddDate(0, 0, -s.historyDays)
+
+	targetDate := s.today().AddDate(0, 0, s.daysAhead)
+	cutoff := s.today().AddDate(0, 0, -s.historyDays)
 
 	log.Printf("forecast: generating for %s using %d days of history (since %s)",
 		targetDate.Format("2006-01-02"), s.historyDays, cutoff.Format("2006-01-02"))
@@ -58,7 +64,7 @@ func (s *Service) Generate() error {
 		  AND sale_date <  ?
 		GROUP BY store_id, product_id, hour
 		ORDER BY store_id, product_id, hour
-	`, cutoff, today()).Scan(&rows).Error
+	`, cutoff, s.today()).Scan(&rows).Error
 	if err != nil {
 		return fmt.Errorf("forecast avg query: %w", err)
 	}
@@ -86,18 +92,16 @@ func (s *Service) Generate() error {
 		if err := tx.Where("forecast_date = ?", targetDate).Delete(&models.Forecast{}).Error; err != nil {
 			return fmt.Errorf("forecast clear: %w", err)
 		}
-
 		if err := tx.CreateInBatches(records, 500).Error; err != nil {
 			return fmt.Errorf("forecast insert: %w", err)
 		}
-
 		log.Printf("forecast: inserted %d records for %s", len(records), targetDate.Format("2006-01-02"))
 		return nil
 	})
 }
 
-// today returns the current date at midnight UTC — used to keep time arithmetic consistent.
-func today() time.Time {
-	t := time.Now().UTC()
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+// today returns midnight of the current day in the configured timezone.
+func (s *Service) today() time.Time {
+	t := time.Now().In(s.loc)
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, s.loc)
 }

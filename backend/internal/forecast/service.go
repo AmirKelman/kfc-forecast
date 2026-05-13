@@ -100,6 +100,9 @@ func (s *Service) Generate() error {
 	})
 }
 
+// Loc returns the timezone the service uses for day boundaries.
+func (s *Service) Loc() *time.Location { return s.loc }
+
 // today returns midnight of the current day in the configured timezone.
 func (s *Service) today() time.Time {
 	t := time.Now().In(s.loc)

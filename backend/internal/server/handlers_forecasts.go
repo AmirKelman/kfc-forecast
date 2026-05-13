@@ -81,9 +81,11 @@ func (s *Server) triggerGenerate(c *gin.Context) {
 		}
 	}()
 
+	loc := s.forecastSvc.Loc()
+	tomorrow := time.Now().In(loc).AddDate(0, 0, 1).Format("2006-01-02")
 	c.JSON(http.StatusAccepted, gin.H{
 		"message": "forecast generation started",
-		"date":    time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02"),
+		"date":    tomorrow,
 	})
 }
 

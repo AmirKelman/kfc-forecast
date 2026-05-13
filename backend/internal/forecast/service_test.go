@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/testcontainers/testcontainers-go"
 	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
 	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -24,6 +26,11 @@ func setupDB(t *testing.T) *gorm.DB {
 		tcpg.WithDatabase("testdb"),
 		tcpg.WithUsername("test"),
 		tcpg.WithPassword("test"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(30*time.Second),
+		),
 	)
 	if err != nil {
 		t.Fatalf("start postgres container: %v", err)

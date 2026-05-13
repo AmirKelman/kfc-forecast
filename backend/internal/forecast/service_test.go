@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/testcontainers/testcontainers-go"
 	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -26,11 +24,6 @@ func setupDB(t *testing.T) *gorm.DB {
 		tcpg.WithDatabase("testdb"),
 		tcpg.WithUsername("test"),
 		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(30*time.Second),
-		),
 	)
 	if err != nil {
 		t.Fatalf("start postgres container: %v", err)
@@ -42,11 +35,25 @@ func setupDB(t *testing.T) *gorm.DB {
 		t.Fatalf("connection string: %v", err)
 	}
 
-	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		t.Fatalf("gorm open: %v", err)
+	// The postgres module's readiness check confirms the port is open but the
+	// PG protocol may not be fully ready yet. Retry until the ping succeeds.
+	var db *gorm.DB
+	for attempt := 1; attempt <= 15; attempt++ {
+		db, err = gorm.Open(gormpostgres.Open(dsn), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+		if err == nil {
+			sqlDB, pingErr := db.DB()
+			if pingErr == nil && sqlDB.Ping() == nil {
+				break
+			}
+			err = pingErr
+		}
+		db = nil
+		time.Sleep(time.Duration(attempt) * 200 * time.Millisecond)
+	}
+	if db == nil {
+		t.Fatalf("connect to test db after 15 attempts: %v", err)
 	}
 
 	if err := db.AutoMigrate(
